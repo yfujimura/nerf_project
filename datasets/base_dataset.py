@@ -1,3 +1,5 @@
+# partially borrowed from K-planes (https://github.com/sarafridov/K-Planes/blob/main/plenoxels/datasets/base_dataset.py)
+
 from abc import ABC
 import os
 from typing import Optional, List, Union

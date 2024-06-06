@@ -1,4 +1,4 @@
-# borrowd from nefacc (https://github.com/nerfstudio-project/nerfacc/blob/master/examples/radiance_fields/ngp.py)
+# borrowed from nefacc (https://github.com/nerfstudio-project/nerfacc/blob/master/examples/radiance_fields/ngp.py)
 
 """
 Copyright (c) 2022 Ruilong Li, UC Berkeley.

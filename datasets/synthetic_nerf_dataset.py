@@ -1,4 +1,4 @@
-# partially borrowd from K-Planes (https://github.com/sarafridov/K-Planes/blob/main/plenoxels/datasets/synthetic_nerf_dataset.py)
+# partially borrowed from K-Planes (https://github.com/sarafridov/K-Planes/blob/main/plenoxels/datasets/synthetic_nerf_dataset.py)
 
 import json
 import os
