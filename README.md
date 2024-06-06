@@ -4,7 +4,7 @@ NeRF code for colleagues
 ## Requirements
 ```
 CUDA 11.6
-pytorch 1.8.0
+pytorch 1.13.1
 tinycudann 
 nerfacc
 ```
