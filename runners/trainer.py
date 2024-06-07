@@ -6,6 +6,7 @@ from tqdm import tqdm
 import numpy as np
 from PIL import Image
 from loguru import logger
+from skimage.metrics import structural_similarity
 
 import torch
 import torch.optim
@@ -159,7 +160,11 @@ class Trainer():
     def validate(self):
         self.model.eval()
         self.estimator.eval()
+        height = self.test_dataset.img_h
+        width = self.test_dataset.img_w
         psnrs = []
+        ssims = []
+        lpipss = []
         logger.info(f"==> Start evaluation ...")
         
         out_dir = os.path.join(self.log_dir, f"{self.global_step}")
@@ -179,24 +184,30 @@ class Trainer():
                     render_step_size=self.render_step_size,
                     render_bkgd=data["bg_color"],
                 )
+                rgb = torch.clamp(rgb, 0, 1)
+                
+                rgb_np = rgb.cpu().numpy().reshape(height, width, 3)
+                depth_np = depth.cpu().numpy().reshape(height, width)
+                target_np = data["imgs"].cpu().numpy().reshape(height, width, 3)
                 
                 mse = F.mse_loss(rgb, data["imgs"])
                 psnr = -10.0 * torch.log(mse) / np.log(10.0)
                 psnrs.append(psnr.item())
                 
+                ssim = structural_similarity(rgb_np, target_np, data_range=1., channel_axis=-1)
+                ssims.append(ssim)
                 
                 # save output
-                height = self.test_dataset.img_h
-                width = self.test_dataset.img_w
                 out_img_path = os.path.join(out_dir, f"color-{img_idx}.png")
                 out_depth_path = os.path.join(out_dir, f"depth-{img_idx}.png")
-                out_img = Image.fromarray((rgb.cpu().numpy() * 255).astype(np.uint8).reshape(height,width,3)).save(out_img_path)
-                out_depth = Image.fromarray((depth.cpu().numpy() * 1000).astype(np.uint16).reshape(height,width)).save(out_depth_path)
+                Image.fromarray((rgb_np * 255).astype(np.uint8)).save(out_img_path)
+                Image.fromarray((depth_np * 1000).astype(np.uint16)).save(out_depth_path)
                 
                 pbar.set_postfix(PSNR=psnrs[-1])
                 pbar.update(1)
         psnr_avg = sum(psnrs) / len(psnrs)
-        logger.info(f"==> PSNR={psnr_avg}.")
+        ssim_avg = sum(ssims) / len(ssims)
+        logger.info(f"==> PSNR={psnr_avg}, SSIM={ssim_avg} ")
         
         
     def get_save_dict(self):
