@@ -7,6 +7,7 @@ import numpy as np
 from PIL import Image
 from loguru import logger
 from skimage.metrics import structural_similarity
+from lpips import LPIPS
 
 import torch
 import torch.optim
@@ -56,6 +57,9 @@ class Trainer():
         self.loss_info = {"Loss": 0.}
         self.save_every = self.extra_args["save_every"]
         self.valid_every = self.extra_args["valid_every"]
+        
+        self.lpips_alex = LPIPS()
+        self.lpips_alex.to("cuda")
         
         
         
@@ -186,28 +190,32 @@ class Trainer():
                 )
                 rgb = torch.clamp(rgb, 0, 1)
                 
-                rgb_np = rgb.cpu().numpy().reshape(height, width, 3)
-                depth_np = depth.cpu().numpy().reshape(height, width)
-                target_np = data["imgs"].cpu().numpy().reshape(height, width, 3)
+                rgb = rgb.reshape(height, width, 3)
+                depth = depth.reshape(height, width)
+                target = data["imgs"].reshape(height, width, 3)
                 
-                mse = F.mse_loss(rgb, data["imgs"])
+                mse = F.mse_loss(rgb, target)
                 psnr = -10.0 * torch.log(mse) / np.log(10.0)
                 psnrs.append(psnr.item())
                 
-                ssim = structural_similarity(rgb_np, target_np, data_range=1., channel_axis=-1)
+                ssim = structural_similarity(rgb.cpu().numpy(), target.cpu().numpy(), data_range=1., channel_axis=-1)
                 ssims.append(ssim)
+                
+                lpips = self.lpips_alex(rgb.permute(2, 0, 1).unsqueeze(0), target.permute(2, 0, 1).unsqueeze(0), normalize=True)
+                lpipss.append(lpips.item())
                 
                 # save output
                 out_img_path = os.path.join(out_dir, f"color-{img_idx}.png")
                 out_depth_path = os.path.join(out_dir, f"depth-{img_idx}.png")
-                Image.fromarray((rgb_np * 255).astype(np.uint8)).save(out_img_path)
-                Image.fromarray((depth_np * 1000).astype(np.uint16)).save(out_depth_path)
+                Image.fromarray((rgb.cpu().numpy() * 255).astype(np.uint8)).save(out_img_path)
+                Image.fromarray((depth.cpu().numpy() * 1000).astype(np.uint16)).save(out_depth_path)
                 
                 pbar.set_postfix(PSNR=psnrs[-1])
                 pbar.update(1)
         psnr_avg = sum(psnrs) / len(psnrs)
         ssim_avg = sum(ssims) / len(ssims)
-        logger.info(f"==> PSNR={psnr_avg}, SSIM={ssim_avg} ")
+        lpips_avg = sum(lpipss) / len(lpipss)
+        logger.info(f"==> PSNR={psnr_avg}, SSIM={ssim_avg} LPIPS={lpips_avg} ")
         
         
     def get_save_dict(self):
