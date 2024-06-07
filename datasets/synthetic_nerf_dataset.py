@@ -22,12 +22,10 @@ class SyntheticNerfDataset(BaseDataset):
     def __init__(self,
                  datadir,
                  split: str,
-                 batch_size: Optional[int] = None,
-                 max_frames: Optional[int] = None):
-        self.max_frames = max_frames
+                 batch_size: Optional[int] = None):
         self.near_far = [2.0, 6.0]
 
-        frames, transform = load_frames(datadir, split, self.max_frames)
+        frames, transform = load_frames(datadir, split)
         imgs, poses = load_images(frames, datadir, split)
         intrinsics = load_intrinsics(transform, img_h=imgs[0].shape[0], img_w=imgs[0].shape[1])
         rays_o, rays_d, imgs = create_rays(imgs, poses, merge_all=split == 'train', intrinsics=intrinsics)
@@ -89,22 +87,10 @@ def create_rays(
     return all_rays_o, all_rays_d, imgs
 
 
-def load_frames(datadir, split, max_frames: int) -> Tuple[Any, Any]:
+def load_frames(datadir, split) -> Tuple[Any, Any]:
     with open(os.path.join(datadir, f"transforms_{split}.json"), 'r') as f:
         meta = json.load(f)
         frames = meta['frames']
-
-        # Subsample frames
-        tot_frames = len(frames)
-        num_frames = min(tot_frames, max_frames or tot_frames)
-        if split == 'train' or split == 'test':
-            subsample = int(round(tot_frames / num_frames))
-            frame_ids = np.arange(tot_frames)[::subsample]
-            if subsample > 1:
-                log.info(f"Subsampling {split} set to 1 every {subsample} images.")
-        else:
-            frame_ids = np.arange(num_frames)
-        frames = np.take(frames, frame_ids).tolist()
     return frames, meta
 
 
